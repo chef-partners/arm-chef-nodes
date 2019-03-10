@@ -1,0 +1,30 @@
+# Files
+.byebug_history
+.deploy
+.direnv
+.envrc
+.ruby-version
+.vscode
+.uru
+test/integration/build/parameters.json
+inspec.out
+package-lock.json
+local.settings.json
+deploy.json
+parameters.json
+inspec.lock
+Gemfile.lock
+!src/scripts/statsd-azure-queue.js
+
+# Folders
+local/
+build/
+node_modules/
+chef-repo
+
+# Patterns
+bin/*.js.map
+bin/*.js
+*.pdf
+
+docs/_site

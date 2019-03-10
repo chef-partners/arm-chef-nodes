@@ -1,0 +1,15 @@
+{
+  "dirs": {
+    "build": "build"
+  },
+  "files": [
+    {
+      "source": "src/nested",
+      "target": "nested"
+    },
+    {
+      "source": "src/azuredeploy.jsonc",
+      "target": ""
+    }
+  ]
+}

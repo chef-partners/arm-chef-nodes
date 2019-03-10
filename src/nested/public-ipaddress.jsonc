@@ -1,0 +1,76 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+
+    "publicIPAddressName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name to give to the Public IP Address"
+      }
+    },
+
+    "dnsLabelPrefix": {
+      "type": "string"
+    },
+
+    "publicIPAddressAllocation": {
+      "type": "string",
+      "metadata": {
+        "description": "Type of public ip address"
+      },
+      "defaultValue": "dynamic"
+    },
+
+    "location": {
+      "type": "string",
+      "metadata": {
+        "description": "Azure location for the resource"
+      },
+      "defaultValue": "[resourceGroup().location]"
+    }
+
+  },
+  "variables": {
+
+    "name": {
+      "pip": "[parameters('publicIPAddressName')]"
+    },
+
+    "pip": {
+      "allocationMethod": "[parameters('publicIPAddressAllocation')]",
+      "dnsLabel": "[parameters('dnsLabelPrefix')]"
+    },
+
+    "apiVersions": {
+      "publicIPAddress": "2015-06-15"
+    },
+
+    "location": "[parameters('location')]",
+
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "name": "[variables('name').pip]",
+      "apiVersion": "[variables('apiVersions').publicIPAddress]",
+      "location": "[variables('location')]",
+      "properties": {
+        "publicIPAllocationMethod": "[variables('pip').allocationMethod]",
+        "dnsSettings": {
+          "domainNameLabel": "[variables('pip').dnsLabel]",
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "publicIpId": {
+      "value": "[resourceId(concat('Microsoft.Network','/','publicIPAddresses'), variables('name').pip)]",
+      "type": "string"
+    },
+    "fqdn": {
+      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', variables('name').pip),providers('Microsoft.Network', 'publicIPAddresses').apiVersions[0]).dnsSettings.fqdn]",
+      "type": "string"
+    }
+  }
+}

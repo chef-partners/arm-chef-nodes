@@ -1,0 +1,436 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+
+    // Specify the prefix for all resouces created by the template
+    // This does not apply to the storage account
+    "prefix": {
+      "type": "string",
+      "metadata": {
+        "description": "All resources need to be uniquely identified, this prefix will be prepended to all resources. (This does not apply to the storage account)."
+      }
+    },
+
+    // Each of the NICs in the machines need to be connected to a subnet
+    // Set the parameters that determine where that subnet can be found
+    "networkRGName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the resource group that contains the VNet and Subnet to connect to"
+      }
+    },
+
+    "networkVnetName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the VNet containing the subnet"
+      }
+    },
+
+    "networkSubnetName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the subnet for the nic to connect to"
+      }
+    },
+
+    // Set the number of machines that are required
+    "windowsMachineCount": {
+      "type": "int",
+      "metadata": {
+        "description": "The number of Windows machines to create"
+      }
+    },
+
+    "linuxMachineCount": {
+      "type": "int",
+      "metadata": {
+        "description": "The number of Linux machines to create"
+      }
+    },
+
+    // Set the operating system that should be used
+    "windowsOS": {
+      "type": "string",
+      "defaultValue": "2016-Datacenter"
+    },
+
+    "linuxOS": {
+      "type": "string",
+      "defaultValue": "18.04-LTS"
+    },
+
+    // Define the size of the machines that should be used
+    "windowsVMSize": {
+      "type": "string",
+      "defaultValue": "Standard_DS2_V2",
+      "metadata": {
+        "description": "VM size for Windows machines"
+      }
+    },
+
+    "linuxVMSize": {
+      "type": "string",
+      "defaultValue": "Standard_DS2_V2",
+      "metadata": {
+        "description": "VM size for Windows machines"
+      }
+    },
+
+    // Set the data disks that are required
+    "windowsDataDisks": {
+      "type": "array",
+      "metadata":{
+        "description": "Set an array of the sizes of data disks that need to be applied to the Windows machine"
+      },
+      "defaultValue": []
+    },
+
+    "linuxDataDisks": {
+      "type": "array",
+      "metadata":{
+        "description": "Set an array of the sizes of data disks that need to be applied to the Linux machine"
+      },
+      "defaultValue": []
+    },
+
+    // Set properties for the OS
+    "osAccountName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the user to create in the OS"
+      },
+      "defaultValue": "azure"
+    },
+
+    "osAccountPassword": {
+      "type": "string",
+      "metadata": {
+        "description": "Password to be associated with the user specified"
+      }
+    },
+
+    "osAccountSSHKeys": {
+      "type": "array",
+      "metadata": {
+        "description": "SSH keys to be associated with the user. This only applies to Linux machines"
+      },
+      "defaultValue": []
+    },
+
+    // Set the parameters that are required in order to connect to the chef server
+    "chefServerUrl": {
+      "type": "string",
+      "metadata": {
+        "description": "URL for the chef server to register against"
+      },
+      "defaultValue": ""
+    },
+
+    "chefValidatorName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the validator key"
+      },
+      "defaultValue": ""
+    },
+
+    "chefRunlistLinux": {
+      "type": "string",
+      "metadata": {
+        "description": "Runlist to apply to the Linux machines"
+      },
+      "defaultValue": ""
+    },
+
+    "chefRunlistWindows": {
+      "type": "string",
+      "metadata": {
+        "description": "Runlist to apply to the Windows machines"
+      },
+      "defaultValue": ""
+    },    
+
+    "chefNodeSSLVerifyMode": {
+      "type": "string",
+      "metadata": {
+        "description": "State if the mode for SSL verification"
+      },
+      "allowedValues": [
+        "peer",
+        "none"
+      ],
+      "defaultValue": "peer"
+    },
+
+    "chefEnvironment": {
+      "type": "string",
+      "metadata": {
+        "description": "Environment that the machines should be added to"
+      },
+      "defaultValue": "_default"
+    },
+
+    "chefClientConfiguration": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Additional Client configuration to be applied to the Chef extension"
+      },
+      "defaultValue": ""
+    },
+
+    "chefValidatorKey": {
+      "type": "securestring",
+      "metadata": {
+        "description": "The key for the named validator encoded in Base64"
+      },
+      "defaultValue": ""
+    },
+
+    "chefClientVersion": {
+      "type": "string",
+      "metadata": {
+        "description": "The version of Chef client to install"
+      },
+      "defaultValue": "14.11.21"
+    },
+
+    "enableBootDiagnostics": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "State if boot diagnostics are to be enabled on the machines. If not enabled then no storage account will be created. Default is `false`."
+      }
+    },
+
+    "enablePublicIPAddress": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "State if the machines should be give a Public IP address or not. Default is `true`"
+      }
+    },
+
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for all resources created by this template"
+      }
+    },
+
+    // Parameters below here are not normally required to be modified
+    "uniqueShort": {
+      "type": "string",
+      "defaultValue": ""
+    }
+  },
+  "variables": {
+
+    // Create the unique string that will be used for the storage account if one is needed
+    "unique": "[uniqueString(subscription().subscriptionId, resourceGroup().id, deployment().name, parameters('prefix'))]",
+    "uniqueShort": "[if(empty(parameters('uniqueShort')), substring(variables('unique'), 0, 4), parameters('uniqueShort'))]",
+
+    "location": "[parameters('location')]",
+
+    // Determine the reference to the Subnet for the NIC for the machines
+    "ref": {
+      "subnet": "[resourceId(parameters('networkRGName'), 'Microsoft.Network/virtualNetworks/subnets', parameters('networkVnetName'), parameters('networkSubnetName'))]"
+    },
+
+    // Set the names of the resources that are to be created
+    "name": {
+      "sa": "[concat(parameters('prefix'), '-', variables('uniqueShort'), '-SA')]",
+      "storageAccount": "[variables('unique')]",
+
+      // Set the names of the machines, this will appended with the count value
+      "vm": {
+        "windows": {
+          "name": "[concat(parameters('prefix'), '-win-', variables('uniqueShort'))]",
+          "computerName": "[concat(parameters('prefix'), '-win-', variables('uniqueShort'))]"
+        },
+        "linux": {
+          "name": "[concat(parameters('prefix'), '-lin-', variables('uniqueShort'))]",
+          "computerName": "[concat(parameters('prefix'), '-lin-', variables('uniqueShort'))]"
+        }        
+      }
+    },
+
+    // Set machine properties
+    // This includes the Chef data, apart from the runlist which is specific to the platform
+    "settings": {
+      "bootDiagnostics": "[parameters('enableBootDiagnostics')]",
+      "pip": "[parameters('enablePublicIPAddress')]",
+      "subnetRef": "[variables('ref').subnet]",
+      "account": {
+        "username": "[parameters('osAccountName')]",
+        "password": "[parameters('osAccountPassword')]",
+        "sshPublicKeys": "[parameters('osAccountSSHKeys')]"
+      },
+      "chef": {
+        "serverUrl": "[parameters('chefServerUrl')]",
+        "validatorName": "[parameters('chefValidatorName')]",
+        "validatorKey": "[parameters('chefValidatorKey')]",
+        "nodeSSLVerifyMode": "[parameters('chefNodeSSLVerifyMode')]",
+        "environment": "[parameters('chefEnvironment')]",
+        "clientConfiguration": "[parameters('chefClientConfiguration')]",
+        "version": "[parameters('chefClientVersion')]"
+      }
+    },
+    
+    "settingsWindows": {
+      "count": "[parameters('windowsMachineCount')]",
+      "sku": "[parameters('windowsOS')]",
+      "vmSize": "[parameters('windowsVMSize')]",
+      "dataDisks": "[parameters('windowsDataDisks')]",
+      "chefRunList": "[parameters('chefRunlistWindows')]"
+    },
+
+    "settingsLinux": {
+      "count": "[parameters('linuxMachineCount')]",
+      "sku": "[parameters('linuxOS')]",
+      "vmSize": "[parameters('linuxVMSize')]",
+      "dataDisks": "[parameters('linuxDataDisks')]",
+      "chefRunList": "[parameters('chefRunlistLinux')]"
+    },
+
+    // Define the URLs to the nested templates that create the necessary resources
+    "baseUrl": "[uri(deployment().properties.templateLink.uri, '.')]",
+    "urls": {
+      "storageAccount": "[concat(variables('baseUrl'), 'nested/storage-account.json')]",
+      "vm": "[concat(variables('baseUrl'), 'nested/virtual-machine.jsonc')]",
+      "pip": "[concat(variables('baseUrl'), 'nested/public-ipaddress.jsonc')]",
+      "nic": "[concat(variables('baseUrl'), 'nested/network-interface.jsonc')]",
+      "subnetRef": "[variables('ref').subnet]",
+      "platform": {
+        "windows": "[concat(variables('baseUrl'), 'nested/vm-windows.jsonc')]",
+        "linux": "[concat(variables('baseUrl'), 'nested/vm-linux.jsonc')]",
+      },
+      "extension": {
+        "chef": "[concat(variables('baseUrl'), 'nested/chef-extension.jsonc')]",
+      }
+    },
+
+    "apiVersions": {
+      "deployments": "2017-05-10"
+    },
+
+    // Define the tags for each resource. This is so that MS knows that this was a template provided by Chef
+    "tags": {
+      "provider": "2680257b-9f22-4261-b1ef-72412d367a68"
+    },
+
+  },
+  "resources": [
+
+    // Create a storage account if boot diagnostics are enabled
+    {
+      "type": "Microsoft.Resources/deployments",
+      "name": "[concat(variables('name').sa, '-Deployment')]",
+      "apiVersion": "[variables('apiVersions').deployments]",
+      "condition": "[variables('settings').bootDiagnostics]",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+            "uri": "[variables('urls').storageAccount]",
+            "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "location": {
+            "value": "[variables('location')]"
+          },
+          "storageAccountName": {
+            "value": "[variables('name').storageAccount]"
+          }
+        }
+      }
+    },
+
+    // Create the necessary number of Linux Machines
+    // Do not create any of 0 machines are required
+    {
+      "type": "Microsoft.Resources/deployments",
+      "name": "[concat(variables('name').vm.linux.name, '-', copyIndex(1), '-Deployment')]",
+      "apiVersion": "[variables('apiVersions').deployments]",
+      "condition": "[greater(variables('settingsLinux').count, 0)]",
+      "dependsOn": [
+        "[concat('Microsoft.Resources/deployments/', variables('name').sa, '-Deployment')]"
+      ],
+      "copy": {
+        "name": "vmLinuxCopy",
+        "count": "[variables('settingsLinux').count]"
+      },
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('urls').vm]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "name": {
+            "value": "[concat(variables('name').vm.linux.computerName, '-', copyIndex(1))]"
+          },
+          "settings": {
+            "value": "[union(variables('settings'), variables('settingsLinux'))]"
+          },
+          "saName": {
+            "value": "[variables('name').storageAccount]"
+          },
+          "platform": {
+            "value": "linux"
+          },
+          "urls": {
+            "value": "[variables('urls')]"
+          }
+        }
+      }
+    },
+
+    // Create the necessary number of Windows Machines
+    // Do not create any of 0 machines are required
+    {
+      "type": "Microsoft.Resources/deployments",
+      "name": "[concat(variables('name').vm.windows.name, '-', copyIndex(1), '-Deployment')]",
+      "apiVersion": "[variables('apiVersions').deployments]",
+      "condition": "[greater(variables('settingsWindows').count, 0)]",
+      "dependsOn": [
+        "[concat('Microsoft.Resources/deployments/', variables('name').sa, '-Deployment')]"
+      ],
+      "copy": {
+        "name": "vmLinuxCopy",
+        "count": "[variables('settingsWindows').count]"
+      },
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('urls').vm]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "name": {
+            "value": "[concat(variables('name').vm.windows.computerName, '-', copyIndex(1))]"
+          },
+          "settings": {
+            "value": "[union(variables('settings'), variables('settingsWindows'))]"
+          },
+          "saName": {
+            "value": "[variables('name').storageAccount]"
+          },
+          "platform": {
+            "value": "windows"
+          },
+          "urls": {
+            "value": "[variables('urls')]"
+          }
+        }
+      }
+    }    
+
+
+
+  ],
+  "outputs": {
+
+  }
+}
