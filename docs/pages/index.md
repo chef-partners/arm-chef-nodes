@@ -11,7 +11,7 @@ Where possible settings that need to be applied to both types of machine has bee
 
 To get going immediately, click on the button below. The browser will open a page in the Azure Portal with _all_ the parameters in a form.
 
-<a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fchef-partners%2Farm-chef-nodes%2Fmaster%2Fsrc%2Fazuredeploy.jsonc" target="_blank">
+<a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fchef-partners%2Farm-chef-nodes%2Fmaster%2Fsrc%2Fazuredeploy.json" target="_blank">
     <img src="http://azuredeploy.net/deploybutton.png"/>
 </a>
 
@@ -52,7 +52,8 @@ Depending on the tool being used run the appropriate command
 az group create -n arm-chef-node-quickstart -l westeurope
 
 # Deploy the template into the new resource group
-az group deployment create -g arm-chef-node-quickstart --parameters ./parameters.dist.json --template-uri 
+az group deployment create -g arm-chef-node-quickstart --parameters ./parameters.dist.json --template-uri https://raw.githubusercontent.com/chef-partners/arm-chef-nodes/master/src/azuredeploy.json
+```
 ```
 
 ## PowerShell
@@ -62,7 +63,8 @@ az group deployment create -g arm-chef-node-quickstart --parameters ./parameters
 New-AzureRMResourceGroup -Name arm-chef-node-quickstart -Location westeurope
 
 # Deploy the template into the new resource group
-New-AzureRMResourceGroupDeployment -ResourceGroupName arm-chef-node-quickstart -TemplateParameterFile .\parameters.dist.json -TemplateUri 
+New-AzureRMResourceGroupDeployment -ResourceGroupName arm-chef-node-quickstart -TemplateParameterFile .\parameters.dist.json -TemplateUri https://raw.githubusercontent.com/chef-partners/arm-chef-nodes/master/src/azuredeploy.json
+```
 ```
 
 {% include image.html file="quickstart_deployment.png" alt="Quickstart Deployment" caption="Results of the Quickstart deployment into Azure" %}

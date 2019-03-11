@@ -8,7 +8,7 @@
       "target": "nested"
     },
     {
-      "source": "src/azuredeploy.jsonc",
+      "source": "src/azuredeploy.json",
       "target": ""
     }
   ]

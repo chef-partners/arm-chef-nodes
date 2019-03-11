@@ -1,0 +1,123 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "vmName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the VM as it will appear in Azure"
+            }
+        },
+        "computerName": {
+            "type": "string",
+            "metadata": {
+                "description": "Hostname of the machine"
+            }
+        },
+        "settings": {
+            "type": "object"
+        },
+        "fqdn": {
+            "type": "string"
+        },
+        "refs": {
+            "type": "object"
+        },
+        "sa": {
+            "type": "object"
+        },
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]"
+        }
+    },
+    "variables": {
+        "location": "[parameters('location')]",
+        "name": {
+            "vm": "[parameters('vmName')]",
+            "computer": "[parameters('computerName')]",
+            "sa": "[parameters('sa')]",
+            "disk": {
+                "os": "[concat(parameters('vmName'), '-OSDisk')]"
+            }
+        },
+        "osProfile": {
+            "adminUsername": "[parameters('settings').account.username]",
+            "adminPassword": "[parameters('settings').account.password]",
+            "computerName": "[variables('name').computer]"
+        },
+        "copy": [
+            {
+                "name": "dataDisks",
+                "count": "[if(equals(length(parameters('settings').dataDisks), 0), 1, length(parameters('settings').dataDisks))]",
+                "input": {
+                    "name": "[concat(variables('name').vm, '-DataDisk-', copyIndex('dataDisks'))]",
+                    "createOption": "Empty",
+                    "lun": "[copyIndex('dataDisks')]",
+                    "diskSizeGB": "[if(equals(length(parameters('settings').dataDisks), 0), '10', parameters('settings').dataDisks[copyIndex('dataDisks')])]"
+                }
+            }
+        ],
+        "ref": {
+            "nic": "[parameters('refs').nic]"
+        },
+        "vmSize": "[parameters('settings').vmSize]",
+        "apiVersions": {
+            "virtualMachines": "2016-04-30-preview"
+        },
+        "image": {
+            "publisher": "MicrosoftWindowsServer",
+            "offer": "WindowsServer",
+            "sku": "[parameters('settings').sku]"
+        },
+        "diagnosticsProfile": "[if(parameters('settings').bootDiagnostics, variables('diagnosticsProfileEnabled'), variables('diagnosticsProfileDisabled'))]",
+        "diagnosticsProfileDisabled": {
+            "bootDiagnostics": {
+                "enabled": false
+            }
+        },
+        "diagnosticsProfileEnabled": {
+            "bootDiagnostics": {
+                "enabled": true,
+                "storageUri": "[concat('https://', parameters('sa').name, 'blob.core.windows.net')]"
+            }
+        }
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Compute/virtualMachines",
+            "name": "[variables('name').vm]",
+            "apiVersion": "[variables('apiVersions').virtualMachines]",
+            "location": "[variables('location')]",
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "[variables('vmSize')]"
+                },
+                "osProfile": "[variables('osprofile')]",
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "[variables('image').publisher]",
+                        "offer": "[variables('image').offer]",
+                        "sku": "[variables('image').sku]",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "name": "[variables('name').disk.os]",
+                        "caching": "ReadOnly",
+                        "createOption": "FromImage"
+                    },
+                    "dataDisks": "[if(equals(length(parameters('settings').dataDisks), 0), json('null'), variables('dataDisks'))]"
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[variables('ref').nic]"
+                        }
+                    ]
+                },
+                "diagnosticsProfile": "[variables('diagnosticsProfile')]"
+            }
+        }
+    ],
+    "outputs": {}
+}

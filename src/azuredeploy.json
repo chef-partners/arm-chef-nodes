@@ -3,8 +3,6 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
 
-    // Specify the prefix for all resouces created by the template
-    // This does not apply to the storage account
     "prefix": {
       "type": "string",
       "metadata": {
@@ -12,8 +10,6 @@
       }
     },
 
-    // Each of the NICs in the machines need to be connected to a subnet
-    // Set the parameters that determine where that subnet can be found
     "networkRGName": {
       "type": "string",
       "metadata": {
@@ -35,8 +31,7 @@
       }
     },
 
-    // Set the number of machines that are required
-    "windowsMachineCount": {
+   "windowsMachineCount": {
       "type": "int",
       "metadata": {
         "description": "The number of Windows machines to create"
@@ -50,7 +45,6 @@
       }
     },
 
-    // Set the operating system that should be used
     "windowsOS": {
       "type": "string",
       "defaultValue": "2016-Datacenter"
@@ -61,7 +55,6 @@
       "defaultValue": "18.04-LTS"
     },
 
-    // Define the size of the machines that should be used
     "windowsVMSize": {
       "type": "string",
       "defaultValue": "Standard_DS2_V2",
@@ -78,7 +71,6 @@
       }
     },
 
-    // Set the data disks that are required
     "windowsDataDisks": {
       "type": "array",
       "metadata":{
@@ -95,7 +87,6 @@
       "defaultValue": []
     },
 
-    // Set properties for the OS
     "osAccountName": {
       "type": "string",
       "metadata": {
@@ -119,7 +110,6 @@
       "defaultValue": []
     },
 
-    // Set the parameters that are required in order to connect to the chef server
     "chefServerUrl": {
       "type": "string",
       "metadata": {
@@ -220,7 +210,6 @@
       }
     },
 
-    // Parameters below here are not normally required to be modified
     "uniqueShort": {
       "type": "string",
       "defaultValue": ""
@@ -228,23 +217,19 @@
   },
   "variables": {
 
-    // Create the unique string that will be used for the storage account if one is needed
     "unique": "[uniqueString(subscription().subscriptionId, resourceGroup().id, deployment().name, parameters('prefix'))]",
     "uniqueShort": "[if(empty(parameters('uniqueShort')), substring(variables('unique'), 0, 4), parameters('uniqueShort'))]",
 
     "location": "[parameters('location')]",
 
-    // Determine the reference to the Subnet for the NIC for the machines
     "ref": {
       "subnet": "[resourceId(parameters('networkRGName'), 'Microsoft.Network/virtualNetworks/subnets', parameters('networkVnetName'), parameters('networkSubnetName'))]"
     },
 
-    // Set the names of the resources that are to be created
     "name": {
       "sa": "[concat(parameters('prefix'), '-', variables('uniqueShort'), '-SA')]",
       "storageAccount": "[variables('unique')]",
 
-      // Set the names of the machines, this will appended with the count value
       "vm": {
         "windows": {
           "name": "[concat(parameters('prefix'), '-win-', variables('uniqueShort'))]",
@@ -257,8 +242,6 @@
       }
     },
 
-    // Set machine properties
-    // This includes the Chef data, apart from the runlist which is specific to the platform
     "settings": {
       "bootDiagnostics": "[parameters('enableBootDiagnostics')]",
       "pip": "[parameters('enablePublicIPAddress')]",
@@ -295,20 +278,19 @@
       "chefRunList": "[parameters('chefRunlistLinux')]"
     },
 
-    // Define the URLs to the nested templates that create the necessary resources
     "baseUrl": "[uri(deployment().properties.templateLink.uri, '.')]",
     "urls": {
       "storageAccount": "[concat(variables('baseUrl'), 'nested/storage-account.json')]",
-      "vm": "[concat(variables('baseUrl'), 'nested/virtual-machine.jsonc')]",
-      "pip": "[concat(variables('baseUrl'), 'nested/public-ipaddress.jsonc')]",
-      "nic": "[concat(variables('baseUrl'), 'nested/network-interface.jsonc')]",
+      "vm": "[concat(variables('baseUrl'), 'nested/virtual-machine.json')]",
+      "pip": "[concat(variables('baseUrl'), 'nested/public-ipaddress.json')]",
+      "nic": "[concat(variables('baseUrl'), 'nested/network-interface.json')]",
       "subnetRef": "[variables('ref').subnet]",
       "platform": {
-        "windows": "[concat(variables('baseUrl'), 'nested/vm-windows.jsonc')]",
-        "linux": "[concat(variables('baseUrl'), 'nested/vm-linux.jsonc')]",
+        "windows": "[concat(variables('baseUrl'), 'nested/vm-windows.json')]",
+        "linux": "[concat(variables('baseUrl'), 'nested/vm-linux.json')]"
       },
       "extension": {
-        "chef": "[concat(variables('baseUrl'), 'nested/chef-extension.jsonc')]",
+        "chef": "[concat(variables('baseUrl'), 'nested/chef-extension.json')]"
       }
     },
 
@@ -316,15 +298,13 @@
       "deployments": "2017-05-10"
     },
 
-    // Define the tags for each resource. This is so that MS knows that this was a template provided by Chef
     "tags": {
       "provider": "2680257b-9f22-4261-b1ef-72412d367a68"
-    },
+    }
 
   },
   "resources": [
 
-    // Create a storage account if boot diagnostics are enabled
     {
       "type": "Microsoft.Resources/deployments",
       "name": "[concat(variables('name').sa, '-Deployment')]",
@@ -347,8 +327,6 @@
       }
     },
 
-    // Create the necessary number of Linux Machines
-    // Do not create any of 0 machines are required
     {
       "type": "Microsoft.Resources/deployments",
       "name": "[concat(variables('name').vm.linux.name, '-', copyIndex(1), '-Deployment')]",
@@ -387,8 +365,6 @@
       }
     },
 
-    // Create the necessary number of Windows Machines
-    // Do not create any of 0 machines are required
     {
       "type": "Microsoft.Resources/deployments",
       "name": "[concat(variables('name').vm.windows.name, '-', copyIndex(1), '-Deployment')]",

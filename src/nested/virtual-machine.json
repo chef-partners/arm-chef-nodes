@@ -1,0 +1,182 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "name": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the machine as it is seen in Azure"
+            }
+        },
+        "settings": {
+            "type": "object",
+            "metadata": {
+                "description": "Settings object containing the size of the machine etc"
+            }
+        },
+        "saName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the storage account to use if using boot diagnostics"
+            }
+        },
+        "platform": {
+            "type": "string",
+            "metadata": {
+                "description": "Type of machine to create, Linux or Windows"
+            },
+            "allowedValues": [
+                "windows",
+                "linux"
+            ]
+        },
+        "urls": {
+            "type": "object"
+        },
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]"
+        }
+    },
+    "variables": {
+        "location": "[parameters('location')]",
+        "name": {
+            "vm": "[concat(parameters('name'), '-VM')]",
+            "computer": "[parameters('name')]",
+            "sa": {
+                "name": "[parameters('saName')]"
+            },
+            "nic": "[concat(parameters('name'), '-NIC')]",
+            "pip": "[concat(parameters('name'), '-PIP')]",
+            "dns": "[parameters('name')]",
+            "extension": {
+                "chef": "[concat(parameters('name'), '-ChefExt')]"
+            }
+        },
+        "platform": "[parameters('platform')]",
+        "settings": "[parameters('settings')]",
+        "apiVersions": {
+            "deployments": "2016-02-01"
+        },
+        "urls": "[parameters('urls')]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Resources/deployments",
+            "name": "[concat(variables('name').pip, '-Deployment')]",
+            "apiVersion": "[variables('apiVersions').deployments]",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "contentVersion": "1.0.0.0",
+                    "uri": "[variables('urls').pip]"
+                },
+                "parameters": {
+                    "publicIPAddressName": {
+                        "value": "[variables('name').pip]"
+                    },
+                    "dnsLabelPrefix": {
+                        "value": "[variables('name').dns]"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "name": "[concat(variables('name').nic, '-Deployment')]",
+            "apiVersion": "[variables('apiVersions').deployments]",
+            "dependsOn": [
+                "[concat('Microsoft.Resources/deployments/', variables('name').pip, '-Deployment')]"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "contentVersion": "1.0.0.0",
+                    "uri": "[variables('urls').nic]"
+                },
+                "parameters": {
+                    "name": {
+                        "value": "[variables('name').nic]"
+                    },
+                    "refs": {
+                        "value": {
+                            "subnet": "[variables('settings').subnetRef]",
+                            "publicIPAddress": "[reference(concat(variables('name').pip, '-Deployment')).outputs.publicIpId.value]"
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "name": "[concat(variables('name').vm, '-Deployment')]",
+            "apiVersion": "[variables('apiVersions').deployments]",
+            "dependsOn": [
+                "[concat('Microsoft.Resources/deployments/', variables('name').nic, '-Deployment')]"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "contentVersion": "1.0.0.0",
+                    "uri": "[variables('urls').platform[variables('platform')]]"
+                },
+                "parameters": {
+                    "vmName": {
+                        "value": "[variables('name').vm]"
+                    },
+                    "computerName": {
+                        "value": "[variables('name').computer]"
+                    },
+                    "settings": {
+                        "value": "[variables('settings')]"
+                    },
+                    "fqdn": {
+                        "value": "[reference(concat(variables('name').pip, '-Deployment')).outputs.fqdn.value]"
+                    },
+                    "refs": {
+                        "value": {
+                            "nic": "[reference(concat(variables('name').nic, '-Deployment')).outputs.ref.value]"
+                        }
+                    },
+                    "sa": {
+                        "value": "[variables('name').sa]"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "name": "[concat(variables('name').extension.chef, '-Deployment')]",
+            "apiVersion": "[variables('apiVersions').deployments]",
+            "dependsOn": [
+                "[concat('Microsoft.Resources/deployments/', variables('name').vm, '-Deployment')]"
+            ],
+            "condition": "[and(not(empty(variables('settings').chef.serverUrl)), not(empty(variables('settings').chef.validatorName)), not(empty(variables('settings').chef.validatorKey)))]",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "contentVersion": "1.0.0.0",
+                    "uri": "[variables('urls').extensions.chef]"
+                },
+                "parameters": {
+                    "vmName": {
+                        "value": "[variables('name').vm]"
+                    },
+                    "computerName": {
+                        "value": "[variables('name').computer]"
+                    },
+                    "chefData": {
+                        "value": "[variables('settings').chef]"
+                    },
+                    "runList": {
+                        "value": "[variables('settings').chefRunList]"
+                    },
+                    "platform": {
+                        "value": "linux"
+                    }
+                }
+            }
+        }
+    ],
+    "outputs": {}
+}
