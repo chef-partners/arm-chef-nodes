@@ -172,7 +172,7 @@
                         "value": "[variables('settings').chefRunList]"
                     },
                     "platform": {
-                        "value": "linux"
+                        "value": "[variables('platform')]"
                     }
                 }
             }
