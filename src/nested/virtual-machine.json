@@ -156,7 +156,7 @@
                 "mode": "Incremental",
                 "templateLink": {
                     "contentVersion": "1.0.0.0",
-                    "uri": "[variables('urls').extensions.chef]"
+                    "uri": "[variables('urls').extension.chef]"
                 },
                 "parameters": {
                     "vmName": {
