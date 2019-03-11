@@ -352,7 +352,7 @@
       ],
       "copy": {
         "name": "vmLinuxCopy",
-        "count": "[variables('settingsLinux').count]"
+        "count": "[if(equals(variables('settingsLinux').count, 0), 1, variables('settingsLinux').count)]"
       },
       "properties": {
         "mode": "Incremental",
@@ -389,8 +389,8 @@
         "[concat('Microsoft.Resources/deployments/', variables('name').sa, '-Deployment')]"
       ],
       "copy": {
-        "name": "vmLinuxCopy",
-        "count": "[variables('settingsWindows').count]"
+        "name": "vmWindowsCopy",
+        "count": "[if(equals(variables('settingsWindows').count, 0), 1, variables('settingsWindows').count)]"
       },
       "properties": {
         "mode": "Incremental",
